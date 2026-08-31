@@ -4,7 +4,7 @@
     "name": "AnimeSaturn",
     "version": "0.0.1",
     "main": "sources/animesaturn",
-    "update": "gh:tuousername/shiru-italian-streaming/animesaturnsearch",
+    "update": "gh:Suplic0z05/shiru-italian-streaming/animesaturnsearch",
     "type": "torrent",
     "speed": "moderate",
     "accuracy": "medium",
