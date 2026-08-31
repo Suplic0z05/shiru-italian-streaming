@@ -1,0 +1,15 @@
+[
+  {
+    "id": "animeunity-it",
+    "name": "AnimeUnity",
+    "version": "0.0.1",
+    "main": "sources/animeunity",
+    "update": "gh:tuousername/shiru-italian-streaming/animeunitysearch",
+    "type": "torrent",
+    "speed": "moderate",
+    "accuracy": "high",
+    "regions": ["IT"],
+    "description": "Fonte di streaming italiana AnimeUnity (animeunity.so). Supporta ricerca per titolo e episodio con stream HLS.",
+    "icon": "https://www.animeunity.so/favicon.ico"
+  }
+]
