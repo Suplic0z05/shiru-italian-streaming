@@ -4,7 +4,7 @@
     "name": "AnimeWorld",
     "version": "0.0.1",
     "main": "sources/animeworld",
-    "update": "gh:tuousername/shiru-italian-streaming/animeworldsearch",
+    "update": "gh:Suplic0z05/shiru-italian-streaming/animeworldsearch",
     "type": "torrent",
     "speed": "moderate",
     "accuracy": "medium",

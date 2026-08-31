@@ -3,5 +3,6 @@
   "version": "0.0.1",
   "description": "Estensione Shiru per AnimeUnity",
   "type": "module",
-  "main": "sources/animeunity.js"
+  "main": "index.json",
+  "types": "sources/index.d.ts"
 }

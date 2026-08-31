@@ -3,5 +3,6 @@
   "version": "0.0.1",
   "description": "Estensione Shiru per AnimeSaturn",
   "type": "module",
-  "main": "sources/animesaturn.js"
+  "main": "index.json",
+  "types": "sources/index.d.ts"
 }
