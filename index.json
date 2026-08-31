@@ -1,1 +1,11 @@
-
+[
+  {
+    "main": "gh:tuousername/shiru-italian-streaming/animeworldsearch"
+  },
+  {
+    "main": "gh:tuousername/shiru-italian-streaming/animesaturnsearch"
+  },
+  {
+    "main": "gh:tuousername/shiru-italian-streaming/animeunitysearch"
+  }
+]
