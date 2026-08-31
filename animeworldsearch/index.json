@@ -1,1 +1,15 @@
-
+[
+  {
+    "id": "animeworld-it",
+    "name": "AnimeWorld",
+    "version": "0.0.1",
+    "main": "sources/animeworld",
+    "update": "gh:tuousername/shiru-italian-streaming/animeworldsearch",
+    "type": "torrent",
+    "speed": "moderate",
+    "accuracy": "medium",
+    "regions": ["IT"],
+    "description": "Fonte di streaming italiana AnimeWorld (animeworld.ac). Supporta ricerca per titolo e episodio.",
+    "icon": "https://www.animeworld.ac/favicon.ico"
+  }
+]
