@@ -1,8 +1,7 @@
 {
-  "name": "animeunitysearch",
-  "version": "0.0.1",
-  "description": "Estensione Shiru per AnimeUnity",
-  "type": "module",
-  "main": "index.json",
-  "types": "sources/index.d.ts"
+    "name": "animeunitysearch",
+    "version": "0.0.1",
+    "description": "Estensione Shiru per AnimeUnity",
+    "type": "module",
+    "main": "sources/animeunity.js"
 }

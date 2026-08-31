@@ -1,15 +1,15 @@
 [
-  {
-    "id": "animesaturn-it",
-    "name": "AnimeSaturn",
-    "version": "0.0.1",
-    "main": "sources/animesaturn",
-    "update": "gh:Suplic0z05/shiru-italian-streaming/animesaturnsearch",
-    "type": "torrent",
-    "speed": "moderate",
-    "accuracy": "medium",
-    "regions": ["IT"],
-    "description": "Fonte di streaming italiana AnimeSaturn (animesaturn.net). Supporta ricerca per titolo e episodio.",
-    "icon": "https://www.animesaturn.net/favicon.ico"
-  }
+    {
+        "id": "animesaturn-it",
+        "name": "AnimeSaturn",
+        "version": "0.0.1",
+        "main": "sources/animesaturn",
+        "update": "gh:Suplic0z05/shiru-italian-streaming/animesaturnsearch",
+        "type": "torrent",
+        "speed": "moderate",
+        "accuracy": "medium",
+        "regions": ["IT"],
+        "description": "Fonte di streaming italiana AnimeSaturn (animesaturn.net). Supporta ricerca per titolo e episodio.",
+        "icon": "https://www.animesaturn.net/favicon.ico"
+    }
 ]
