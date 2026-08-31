@@ -4,7 +4,7 @@
     "name": "AnimeUnity",
     "version": "0.0.1",
     "main": "sources/animeunity",
-    "update": "gh:tuousername/shiru-italian-streaming/animeunitysearch",
+    "update": "gh:Suplic0z05/shiru-italian-streaming/animeunitysearch",
     "type": "torrent",
     "speed": "moderate",
     "accuracy": "high",
