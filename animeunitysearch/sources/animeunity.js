@@ -1,8 +1,6 @@
 /**
  * Estensione AnimeUnity per Shiru
  * Sito: https://www.animeunity.so/
- * NOTA: Il sito è una SPA. I dati sono embedded nello script iniziale
- * oppure ottenibili via API interna.
  */
 export class TorrentSource {
     url = 'https://www.animeunity.so';
@@ -21,7 +19,6 @@ export class TorrentSource {
             const title = titles[0] || '?';
             const episode = query?.episode || 1;
 
-            // CORREZIONE: usa l'API interna del sito (non la pagina HTML SPA)
             const animeInfo = await this.searchViaApi(title);
             if (!animeInfo) {
                 console.log("[AnimeUnity] Nessun risultato per:", title);
@@ -93,9 +90,7 @@ export class TorrentSource {
         } catch { return false; }
     }
 
-    // NUOVO: ricerca tramite API interna
     async searchViaApi(title) {
-        // Metodo 1: API JSON diretta
         try {
             const apiUrl = `${this.url}/api/it/anime`;
             const response = await fetch(apiUrl, {
@@ -109,7 +104,6 @@ export class TorrentSource {
             });
             if (response.ok) {
                 const data = await response.json();
-                // La risposta tipica è { records: [...] } oppure un array
                 const records = data?.records || data?.data || (Array.isArray(data) ? data : []);
                 if (records.length > 0) {
                     const first = records[0];
@@ -120,14 +114,12 @@ export class TorrentSource {
             console.log("[AnimeUnity] API POST fallita, provo fallback HTML:", e.message);
         }
 
-        // Metodo 2: fallback - parsing dati embedded nella pagina archivio
         try {
             const pageUrl = `${this.url}/archivio?title=${encodeURIComponent(title)}`;
             const response = await fetch(pageUrl, { headers: this.headers });
             if (response.ok) {
                 const html = await response.text();
-                // Cerca dati JSON nello script iniziale della SPA
-                // Pattern: window.__INITIAL_DATA__ o simili
+                
                 const dataMatch = html.match(
                     /window\.__INITIAL_DATA__\s*=\s*({[\s\S]*?});?\s*<\/script>/i
                 );
@@ -142,7 +134,7 @@ export class TorrentSource {
                         console.log("[AnimeUnity] Errore parsing JSON embedded:", parseErr.message);
                     }
                 }
-                // Pattern alternativo: cerca nel JSON inline
+                
                 const jsonRegex = /"id"\s*:\s*(\d+)\s*,\s*"slug"\s*:\s*"([^"]+)"/gi;
                 const matches = [...html.matchAll(jsonRegex)];
                 if (matches.length > 0) {
@@ -156,9 +148,7 @@ export class TorrentSource {
         return null;
     }
 
-    // NUOVO: ottiene URL video per un episodio specifico
     async getVideoUrl(animeInfo, episode) {
-        // URL della pagina episodio
         const episodeUrl = `${this.url}/it/anime/${animeInfo.id}-${animeInfo.slug}/${episode}`;
         console.log("[AnimeUnity] Fetch episodio:", episodeUrl);
 
@@ -167,19 +157,16 @@ export class TorrentSource {
             if (!response.ok) return null;
             const html = await response.text();
 
-            // Cerca URL m3u8 diretto
             const m3u8Regex = /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/gi;
             const m3u8Matches = [...html.matchAll(m3u8Regex)];
             if (m3u8Matches.length > 0) {
                 return m3u8Matches[0][1];
             }
 
-            // Cerca embed VixCloud o simile
             const iframeRegex = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi;
             for (const m of [...html.matchAll(iframeRegex)]) {
                 const embedUrl = m[1];
                 if (embedUrl.includes('vixcloud') || embedUrl.includes('stream')) {
-                    // Prova a estrarre m3u8 dall'embed
                     try {
                         const embedResp = await fetch(embedUrl, {
                             headers: { ...this.headers, Referer: episodeUrl }
@@ -194,7 +181,6 @@ export class TorrentSource {
                 }
             }
 
-            // Cerca nel JSON embedded della pagina episodio
             const sourceRegex = /"src"\s*:\s*"(https?:\/\/[^"]+)"/gi;
             const sourceMatches = [...html.matchAll(sourceRegex)];
             if (sourceMatches.length > 0) {

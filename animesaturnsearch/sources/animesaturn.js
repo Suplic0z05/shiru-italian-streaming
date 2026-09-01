@@ -19,7 +19,6 @@ export class TorrentSource {
             const title = titles[0] || '?';
             const episode = query?.episode || 1;
 
-            // CORREZIONE 1: endpoint corretto
             const searchUrl = `${this.url}/animelist?search=${encodeURIComponent(title)}`;
             console.log("[AnimeSaturn] Ricerca:", searchUrl);
 
@@ -37,13 +36,11 @@ export class TorrentSource {
             }
             console.log("[AnimeSaturn] Slug trovato:", animeSlug);
 
-            // CORREZIONE 2: prima otteniamo la lista episodi dalla pagina anime
             const animePageUrl = `${this.url}/anime/${animeSlug}`;
             const animeResponse = await fetch(animePageUrl, { headers: this.headers });
             if (!animeResponse.ok) return [];
             const animeHtml = await animeResponse.text();
 
-            // CORREZIONE 3: estraiamo l'URL specifico dell'episodio dalla pagina anime
             const episodePath = this.extractEpisodePath(animeHtml, episode);
             if (!episodePath) {
                 console.log(`[AnimeSaturn] Episodio ${episode} non trovato nella lista`);
@@ -58,7 +55,6 @@ export class TorrentSource {
             if (!episodeResponse.ok) return [];
             const episodeHtml = await episodeResponse.text();
 
-            // CORREZIONE 4: cerca anche la pagina /watch/ se presente
             const videoUrl = await this.extractVideoUrl(episodeHtml, episodeUrl);
             if (!videoUrl) {
                 console.log("[AnimeSaturn] Impossibile estrarre URL video");
@@ -143,27 +139,25 @@ export class TorrentSource {
 
     extractAnimeSlug(html) {
         const decoded = this.decodeEntities(html);
-        // Pattern: href="/anime/SLUG"
         const regex = /href="\/anime\/([^"]+)"[^>]*>/gi;
         const matches = [...decoded.matchAll(regex)];
         return matches.length > 0 ? matches[0][1] : null;
     }
 
-    // NUOVO: estrae il path dell'episodio dalla pagina anime
     extractEpisodePath(animeHtml, episode) {
         const decoded = this.decodeEntities(animeHtml);
-        // Pattern 1: href="/ep/SLUG-ep-N"
+        
         const regex1 = new RegExp(
-            `href="(\\/ep\\/[^\\""]+-ep-${episode})"`, 'gi'
+            `href="(\\/ep\\/[^""]+-ep-${episode})"`, 'gi'
         );
         const match1 = decoded.match(regex1);
         if (match1) {
             const href = match1[0].match(/href="([^"]+)"/i);
             if (href) return href[1];
         }
-        // Pattern 2: href="/ep/SLUG-EPN" (senza trattino)
+        
         const regex2 = new RegExp(
-            `href="(\\/ep\\/[^\\""]+[-]?(?:ep)?${episode})"`, 'gi'
+            `href="(\\/ep\\/[^""]+[-]?(?:ep)?${episode})"`, 'gi'
         );
         const match2 = decoded.match(regex2);
         if (match2) {
@@ -178,7 +172,6 @@ export class TorrentSource {
         const BLOCKED = ['youtube.com','youtu.be','dailymotion.com','a-ads.com','adsterra','propellerads','popads'];
         const isBlocked = (u) => BLOCKED.some(h => u.includes(h));
 
-        // Cerca link alla pagina /watch/ (spesso il vero player è lì)
         const watchRegex = /href="\/watch\/([^"]+)"/gi;
         const watchMatches = [...decoded.matchAll(watchRegex)];
         if (watchMatches.length > 0) {
@@ -194,17 +187,15 @@ export class TorrentSource {
             }
         }
 
-        // Fallback: cerca direttamente nella pagina episodio
         return this._findVideoInHtml(decoded, isBlocked);
     }
 
     _findVideoInHtml(html, isBlocked) {
-        // iframe embed
         const iframeRegex = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi;
         for (const m of [...html.matchAll(iframeRegex)]) {
             if (!isBlocked(m[1])) return m[1];
         }
-        // URL diretti
+        
         const patterns = [
             /['"](https?:\/\/[^"']+\.mp4[^"']*)['"]/i,
             /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/i,

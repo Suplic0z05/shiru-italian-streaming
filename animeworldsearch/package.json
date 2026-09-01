@@ -1,7 +1,7 @@
 {
-  "name": "animeworldsearch",
-  "version": "0.0.1",
-  "description": "Estensione Shiru per AnimeWorld",
-  "type": "module",
-  "main": "sources/animeworld.js"
+    "name": "animeworldsearch",
+    "version": "0.0.1",
+    "description": "Estensione Shiru per AnimeWorld",
+    "type": "module",
+    "main": "sources/animeworld.js"
 }

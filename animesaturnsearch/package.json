@@ -1,7 +1,7 @@
 {
-  "name": "animesaturnsearch",
-  "version": "0.0.1",
-  "description": "Estensione Shiru per AnimeSaturn",
-  "type": "module",
-  "main": "sources/animesaturn.js"
+    "name": "animesaturnsearch",
+    "version": "0.0.1",
+    "description": "Estensione Shiru per AnimeSaturn",
+    "type": "module",
+    "main": "sources/animesaturn.js"
 }

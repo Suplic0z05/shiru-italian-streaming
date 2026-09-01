@@ -1,8 +1,6 @@
 /**
  * Estensione AnimeWorld per Shiru
  * Sito: https://www.animeworld.ac/
- * NOTA: Tutti gli episodi sono nella stessa pagina /play/.
- * Il video si ottiene via API interna.
  */
 export class TorrentSource {
     url = 'https://www.animeworld.ac';
@@ -30,7 +28,6 @@ export class TorrentSource {
             }
             const searchHtml = await searchResponse.text();
 
-            // Verifica se Cloudflare ha bloccato la richiesta
             if (searchHtml.includes('challenge-platform') || searchHtml.includes('cf-browser-verification')) {
                 console.error("[AnimeWorld] Bloccato da Cloudflare");
                 return [];
@@ -43,22 +40,18 @@ export class TorrentSource {
             }
             console.log("[AnimeWorld] Anime trovato:", animeLink);
 
-            // CORREZIONE: fetch della pagina /play/ (tutti gli episodi sono qui)
             const playResponse = await fetch(animeLink, { headers: this.headers });
             if (!playResponse.ok) return [];
             const playHtml = await playResponse.text();
 
-            // CORREZIONE: estrae l'ID dell'episodio specifico
             const episodeId = this.extractEpisodeId(playHtml, episode);
             if (!episodeId) {
                 console.log(`[AnimeWorld] Episodio ${episode} non trovato`);
                 return [];
             }
 
-            // CORREZIONE: ottiene il video tramite API interna
             const videoUrl = await this.getVideoFromApi(episodeId, animeLink);
             if (!videoUrl) {
-                // Fallback: cerca direttamente nell'HTML
                 const fallbackUrl = this.extractVideoUrl(playHtml);
                 if (!fallbackUrl) {
                     console.log("[AnimeWorld] Impossibile estrarre URL video");
@@ -99,14 +92,8 @@ export class TorrentSource {
                     const videoUrl = await this.getVideoFromApi(episodeId, animeLink)
                         || this.extractVideoUrl(playHtml);
                     if (videoUrl) {
-                        results.push({
-                            title: `${title} - Episodio ${ep} [AnimeWorld]`,
-                            link: videoUrl,
-                            seeders: 0, leechers: 0, downloads: 0,
-                            accuracy: 'high',
-                            hash: `animeworld-batch-${ep}-${Date.now()}`,
-                            size: 0, date: new Date(), type: 'batch'
-                        });
+                        results.push(this._buildResult(title, ep, videoUrl));
+                        results[results.length - 1].type = 'batch';
                     }
                 } catch (e) {
                     console.log(`[AnimeWorld] Ep ${ep} non disponibile`);
@@ -147,10 +134,9 @@ export class TorrentSource {
         return matches.length > 0 ? `${this.url}/play/${matches[0][1]}` : null;
     }
 
-    // NUOVO: estrae l'ID dell'episodio dalla pagina play
     extractEpisodeId(html, episode) {
         const decoded = this.decodeEntities(html);
-        // Pattern 1: data-episode-num="N" ... data-id="ID"
+        
         const regex1 = new RegExp(
             `data-episode-num=["']${episode}["'][^>]*data-id=["'](\\d+)["']`, 'gi'
         );
@@ -159,7 +145,7 @@ export class TorrentSource {
             const idMatch = m1[0].match(/data-id=["'](\d+)["']/i);
             if (idMatch) return idMatch[1];
         }
-        // Pattern 2: ordine inverso degli attributi
+        
         const regex2 = new RegExp(
             `data-id=["'](\\d+)["'][^>]*data-episode-num=["']${episode}["']`, 'gi'
         );
@@ -168,19 +154,10 @@ export class TorrentSource {
             const idMatch = m2[0].match(/data-id=["'](\d+)["']/i);
             if (idMatch) return idMatch[1];
         }
-        // Pattern 3: cerca in elementi con class "episode" e testo del numero
-        const regex3 = new RegExp(
-            `<a[^>]*class=["'][^"']*episode[^"']*["'][^>]*data-id=["'](\\d+)["'][^>]*>[^<]*${episode}[^<]*<\\/a>`, 'gi'
-        );
-        const m3 = decoded.match(regex3);
-        if (m3) {
-            const idMatch = m3[0].match(/data-id=["'](\d+)["']/i);
-            if (idMatch) return idMatch[1];
-        }
+        
         return null;
     }
 
-    // NUOVO: ottiene il video dall'API interna di AnimeWorld
     async getVideoFromApi(episodeId, referer) {
         try {
             const apiUrl = `${this.url}/api/episode/info?id=${episodeId}`;
@@ -197,12 +174,10 @@ export class TorrentSource {
             if (!response.ok) return null;
             const data = await response.json();
 
-            // La risposta contiene tipicamente un campo "grabber" o "url"
             if (data?.grabber) return data.grabber;
             if (data?.url) return data.url;
             if (data?.server?.url) return data.server.url;
 
-            // Cerca in tutti i campi
             const str = JSON.stringify(data);
             const m3u8Match = str.match(/(https?:\/\/[^"']+\.m3u8[^"']*)/i);
             if (m3u8Match) return m3u8Match[1];
