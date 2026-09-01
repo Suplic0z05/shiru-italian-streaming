@@ -9,7 +9,7 @@
     "speed": "moderate",
     "accuracy": "medium",
     "regions": ["IT"],
-    "description": "Fonte di streaming italiana AnimeSaturn (animesaturn.net). Supporta ricerca per titolo e episodio.",
+    "description": "Fonte di streaming italiana AnimeSaturn",
     "icon": "https://www.animesaturn.net/favicon.ico"
   }
 ]

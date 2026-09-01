@@ -9,7 +9,7 @@
     "speed": "moderate",
     "accuracy": "high",
     "regions": ["IT"],
-    "description": "Fonte di streaming italiana AnimeUnity (animeunity.so). Supporta ricerca per titolo e episodio con stream HLS.",
+    "description": "Fonte di streaming italiana AnimeUnity",
     "icon": "https://www.animeunity.so/favicon.ico"
   }
 ]
