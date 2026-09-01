@@ -1,6 +1,6 @@
 {
     "name": "shiru-italian-streaming",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Estensioni Shiru per siti di streaming italiani (AnimeWorld, AnimeSaturn, AnimeUnity)",
     "type": "module",
     "author": "Suplic0z05",
