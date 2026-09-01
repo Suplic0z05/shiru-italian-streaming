@@ -1,0 +1,7 @@
+{
+  "name": "animeunionsearch",
+  "version": "0.0.1",
+  "description": "Estensione Shiru per AnimeUnion",
+  "type": "module",
+  "main": "sources/animeunion.js"
+}

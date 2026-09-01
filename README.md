@@ -12,6 +12,7 @@ Estensioni per [Shiru](https://shiru.app/) che permettono di cercare e riprodurr
 | **AnimeWorld** | [animeworld.ac](https://www.animeworld.ac) | ✅ Attivo | 🇮🇹 IT |
 | **AnimeSaturn** | [animesaturn.net](https://www.animesaturn.net) | ✅ Attivo | 🇮🇹 IT |
 | **AnimeUnity** | [animeunity.so](https://www.animeunity.so) | ✅ Attivo | 🇮🇹 IT |
+| **AnimeUnion** | [animeunion.tv](https://animeunion.tv) | ✅ Attivo | 🇮🇹 IT |
 
 ## 🚀 Installazione
 
@@ -32,6 +33,7 @@ Puoi installare singole estensioni usando questi identificativi:
 | AnimeWorld | `gh:Suplic0z05/shiru-italian-streaming/animeworldsearch` |
 | AnimeSaturn | `gh:Suplic0z05/shiru-italian-streaming/animesaturnsearch` |
 | AnimeUnity | `gh:Suplic0z05/shiru-italian-streaming/animeunitysearch` |
+| AnimeUnion | `gh:Suplic0z05/shiru-italian-streaming/animeunionsearch` |
 
 ## 📖 Utilizzo
 
@@ -96,11 +98,16 @@ shiru-italian-streaming/
 │   ├── package.json
 │   └── sources/
 │       └── animesaturn.js
-└── animeunitysearch/          # Estensione AnimeUnity
+├── animeunitysearch/          # Estensione AnimeUnity
+│   ├── index.json
+│   ├── package.json
+│   └── sources/
+│       └── animeunity.js
+└── animeunionsearch/          # Estensione AnimeUnion
     ├── index.json
     ├── package.json
     └── sources/
-        └── animeunity.js
+        └── animeunion.js
 ```
 
 ## 🤝 Contribuire

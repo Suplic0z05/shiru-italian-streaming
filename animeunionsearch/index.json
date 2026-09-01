@@ -1,0 +1,15 @@
+[
+  {
+    "id": "animeunion-it",
+    "name": "AnimeUnion",
+    "version": "0.0.1",
+    "main": "sources/animeunion",
+    "update": "gh:Suplic0z05/shiru-italian-streaming/animeunionsearch",
+    "type": "torrent",
+    "speed": "fast",
+    "accuracy": "high",
+    "regions": ["IT"],
+    "description": "Fonte di streaming italiana AnimeUnion",
+    "icon": "https://animeunion.tv/favicon.ico"
+  }
+]
