@@ -1,11 +1,7 @@
 /**
  * Estensione AnimeSaturn per Shiru
  * Sito: https://www.animesaturn.net/
- * 
- * Implementa lo scraping delle pagine di ricerca e degli episodi per estrarre
- * i link di streaming diretto da player embed (Streamtape, FileMoon, ecc.).
  */
-
 export class TorrentSource {
     constructor() {
         this.url = 'https://www.animesaturn.net';
@@ -17,254 +13,216 @@ export class TorrentSource {
         };
     }
 
-    /**
-     * Query results for a single episode.
-     * @type {import('./index.d.ts').SearchFunction}
-     */
     async single(query) {
         try {
             const titles = query?.titles ?? [];
             const title = titles[0] || '?';
             const episode = query?.episode || 1;
 
-            const searchUrl = `${this.url}/filter?key=${encodeURIComponent(title)}`;
+            // CORREZIONE 1: endpoint corretto
+            const searchUrl = `${this.url}/animelist?search=${encodeURIComponent(title)}`;
+            console.log("[AnimeSaturn] Ricerca:", searchUrl);
+
             const searchResponse = await fetch(searchUrl, { headers: this.headers });
-            
-            if (!searchResponse.ok) return [];
-            
+            if (!searchResponse.ok) {
+                console.log("[AnimeSaturn] Errore HTTP ricerca:", searchResponse.status);
+                return [];
+            }
             const searchHtml = await searchResponse.text();
+
             const animeSlug = this.extractAnimeSlug(searchHtml);
-            
             if (!animeSlug) {
-                console.log("Nessun risultato trovato per:", title);
+                console.log("[AnimeSaturn] Nessun risultato per:", title);
+                return [];
+            }
+            console.log("[AnimeSaturn] Slug trovato:", animeSlug);
+
+            // CORREZIONE 2: prima otteniamo la lista episodi dalla pagina anime
+            const animePageUrl = `${this.url}/anime/${animeSlug}`;
+            const animeResponse = await fetch(animePageUrl, { headers: this.headers });
+            if (!animeResponse.ok) return [];
+            const animeHtml = await animeResponse.text();
+
+            // CORREZIONE 3: estraiamo l'URL specifico dell'episodio dalla pagina anime
+            const episodePath = this.extractEpisodePath(animeHtml, episode);
+            if (!episodePath) {
+                console.log(`[AnimeSaturn] Episodio ${episode} non trovato nella lista`);
                 return [];
             }
 
-            const episodeUrl = `${this.url}/episode/${animeSlug}/ep-${episode}`;
+            const episodeUrl = episodePath.startsWith('http')
+                ? episodePath
+                : `${this.url}${episodePath}`;
+
             const episodeResponse = await fetch(episodeUrl, { headers: this.headers });
-            
-            if (!episodeResponse.ok) {
-                console.log(`Episodio ${episode} non trovato`);
-                return [];
-            }
-
+            if (!episodeResponse.ok) return [];
             const episodeHtml = await episodeResponse.text();
-            const videoUrl = await this.extractVideoUrl(episodeHtml);
-            
+
+            // CORREZIONE 4: cerca anche la pagina /watch/ se presente
+            const videoUrl = await this.extractVideoUrl(episodeHtml, episodeUrl);
             if (!videoUrl) {
-                console.log("Impossibile estrarre URL video");
+                console.log("[AnimeSaturn] Impossibile estrarre URL video");
                 return [];
             }
 
             return [{
                 title: `${title} - Episodio ${episode} [AnimeSaturn]`,
                 link: videoUrl,
-                seeders: 0,
-                leechers: 0,
-                downloads: 0,
+                seeders: 0, leechers: 0, downloads: 0,
                 accuracy: 'high',
                 hash: `animesaturn-${episode}-${Date.now()}`,
-                size: 0,
-                date: new Date(),
-                type: 'best'
+                size: 0, date: new Date(), type: 'best'
             }];
         } catch (error) {
-            console.error("Errore in single():", error.message);
+            console.error("[AnimeSaturn] Errore:", error.message);
             return [];
         }
     }
 
-    /**
-     * Query results for a batch of episodes.
-     * @type {import('./index.d.ts').SearchFunction}
-     */
     async batch(query) {
         try {
             const title = query?.titles?.[0] || '?';
             const episodeCount = query?.episodeCount || 12;
             const results = [];
 
-            const searchUrl = `${this.url}/filter?key=${encodeURIComponent(title)}`;
+            const searchUrl = `${this.url}/animelist?search=${encodeURIComponent(title)}`;
             const searchResponse = await fetch(searchUrl, { headers: this.headers });
-            
             if (!searchResponse.ok) return [];
-            
             const searchHtml = await searchResponse.text();
             const animeSlug = this.extractAnimeSlug(searchHtml);
-            
             if (!animeSlug) return [];
+
+            const animePageUrl = `${this.url}/anime/${animeSlug}`;
+            const animeResponse = await fetch(animePageUrl, { headers: this.headers });
+            if (!animeResponse.ok) return [];
+            const animeHtml = await animeResponse.text();
 
             for (let ep = 1; ep <= episodeCount; ep++) {
                 try {
-                    const episodeUrl = `${this.url}/episode/${animeSlug}/ep-${ep}`;
+                    const episodePath = this.extractEpisodePath(animeHtml, ep);
+                    if (!episodePath) continue;
+
+                    const episodeUrl = episodePath.startsWith('http')
+                        ? episodePath : `${this.url}${episodePath}`;
                     const response = await fetch(episodeUrl, { headers: this.headers });
-                    
-                    if (response.ok) {
-                        const html = await response.text();
-                        const videoUrl = await this.extractVideoUrl(html);
-                        
-                        if (videoUrl) {
-                            results.push({
-                                title: `${title} - Episodio ${ep} [AnimeSaturn]`,
-                                link: videoUrl,
-                                seeders: 0,
-                                leechers: 0,
-                                downloads: 0,
-                                accuracy: 'high',
-                                hash: `animesaturn-batch-${ep}-${Date.now()}`,
-                                size: 0,
-                                date: new Date(),
-                                type: 'batch'
-                            });
-                        }
+                    if (!response.ok) continue;
+
+                    const html = await response.text();
+                    const videoUrl = await this.extractVideoUrl(html, episodeUrl);
+                    if (videoUrl) {
+                        results.push({
+                            title: `${title} - Episodio ${ep} [AnimeSaturn]`,
+                            link: videoUrl,
+                            seeders: 0, leechers: 0, downloads: 0,
+                            accuracy: 'high',
+                            hash: `animesaturn-batch-${ep}-${Date.now()}`,
+                            size: 0, date: new Date(), type: 'batch'
+                        });
                     }
                 } catch (e) {
-                    console.log(`Episodio ${ep} non disponibile`);
+                    console.log(`[AnimeSaturn] Ep ${ep} non disponibile`);
                 }
             }
-
             return results;
         } catch (error) {
-            console.error("Errore in batch():", error.message);
+            console.error("[AnimeSaturn] Errore batch:", error.message);
             return [];
         }
     }
 
-    /**
-     * Query results for a movie.
-     * @type {import('./index.d.ts').SearchFunction}
-     */
     async movie(query) {
         return this.single({ ...query, episode: 1 });
     }
 
-    /**
-     * Validates the source url.
-     * @type {() => Promise<boolean>}
-     */
     async validate() {
         try {
-            const response = await fetch(this.url, {
-                method: 'HEAD',
-                headers: this.headers
-            });
+            const response = await fetch(this.url, { method: 'HEAD', headers: this.headers });
             return response.ok;
-        } catch (error) {
-            return false;
-        }
+        } catch { return false; }
     }
 
-    /**
-     * Estrae lo slug dell'anime dalla ricerca.
-     * @param {string} html - HTML pagina ricerca
-     * @returns {string|null} Slug anime
-     */
     extractAnimeSlug(html) {
         const decoded = this.decodeEntities(html);
-        
-        // Pattern per link anime: /anime/<slug>
+        // Pattern: href="/anime/SLUG"
         const regex = /href="\/anime\/([^"]+)"[^>]*>/gi;
         const matches = [...decoded.matchAll(regex)];
-        
-        if (matches.length > 0) {
-            return matches[0][1];
+        return matches.length > 0 ? matches[0][1] : null;
+    }
+
+    // NUOVO: estrae il path dell'episodio dalla pagina anime
+    extractEpisodePath(animeHtml, episode) {
+        const decoded = this.decodeEntities(animeHtml);
+        // Pattern 1: href="/ep/SLUG-ep-N"
+        const regex1 = new RegExp(
+            `href="(\\/ep\\/[^\\""]+-ep-${episode})"`, 'gi'
+        );
+        const match1 = decoded.match(regex1);
+        if (match1) {
+            const href = match1[0].match(/href="([^"]+)"/i);
+            if (href) return href[1];
         }
-        
-        // Fallback: cerca data-slug
-        const altRegex = /data-slug=["']([^"']+)["']/gi;
-        const altMatches = [...decoded.matchAll(altRegex)];
-        
-        if (altMatches.length > 0) {
-            return altMatches[0][1];
+        // Pattern 2: href="/ep/SLUG-EPN" (senza trattino)
+        const regex2 = new RegExp(
+            `href="(\\/ep\\/[^\\""]+[-]?(?:ep)?${episode})"`, 'gi'
+        );
+        const match2 = decoded.match(regex2);
+        if (match2) {
+            const href = match2[0].match(/href="([^"]+)"/i);
+            if (href) return href[1];
         }
-        
         return null;
     }
 
-    /**
-     * Estrae l'URL video dalla pagina episodio.
-     * @param {string} html - HTML pagina episodio
-     * @returns {Promise<string|null>} URL video
-     */
-    async extractVideoUrl(html) {
+    async extractVideoUrl(html, refererUrl) {
         const decoded = this.decodeEntities(html);
-        
-        const BLOCKED_HOSTS = [
-            'youtube.com', 'youtu.be', 'dailymotion.com',
-            'a-ads.com', 'ad.a-ads.com', 'acceptable.a-ads.com',
-            'usesponsorarrange.com', 'adsterra', 'propellerads', 'popads'
-        ];
-        
-        const isBlocked = (url) => BLOCKED_HOSTS.some(h => url.includes(h));
+        const BLOCKED = ['youtube.com','youtu.be','dailymotion.com','a-ads.com','adsterra','propellerads','popads'];
+        const isBlocked = (u) => BLOCKED.some(h => u.includes(h));
 
-        // Cerca iframe con player embed
-        const iframeRegex = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi;
-        const iframes = [...decoded.matchAll(iframeRegex)];
-        
-        for (const m of iframes) {
-            const embedUrl = m[1];
-            
-            if (isBlocked(embedUrl)) continue;
-            
-            if (embedUrl.includes('streamtape') || embedUrl.includes('filemoon')) {
-                try {
-                    const embedResponse = await fetch(embedUrl, { headers: this.headers });
-                    const embedHtml = await embedResponse.text();
-                    const embedDecoded = this.decodeEntities(embedHtml);
-                    
-                    const videoPatterns = [
-                        /['"](https?:\/\/[^"']+\.mp4[^"']*)['"]/i,
-                        /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/i,
-                        /file:\s*['"](https?:\/\/[^"']+)['"]/i
-                    ];
-                    
-                    for (const pattern of videoPatterns) {
-                        const match = embedDecoded.match(pattern);
-                        if (match && match[1] && !isBlocked(match[1])) {
-                            return match[1];
-                        }
-                    }
-                } catch (e) {
-                    console.error("Errore fetching embed:", e.message);
-                }
+        // Cerca link alla pagina /watch/ (spesso il vero player è lì)
+        const watchRegex = /href="\/watch\/([^"]+)"/gi;
+        const watchMatches = [...decoded.matchAll(watchRegex)];
+        if (watchMatches.length > 0) {
+            const watchUrl = `${this.url}/watch/${watchMatches[0][1]}`;
+            try {
+                const watchResp = await fetch(watchUrl, {
+                    headers: { ...this.headers, Referer: refererUrl }
+                });
+                const watchHtml = await watchResp.text();
+                return this._findVideoInHtml(watchHtml, isBlocked);
+            } catch (e) {
+                console.error("[AnimeSaturn] Errore fetch watch:", e.message);
             }
-            
-            // Se non è un embed noto, ritorna l'URL stesso
-            return embedUrl;
         }
 
-        // Cerca URL video diretti nell'HTML
-        const directPatterns = [
+        // Fallback: cerca direttamente nella pagina episodio
+        return this._findVideoInHtml(decoded, isBlocked);
+    }
+
+    _findVideoInHtml(html, isBlocked) {
+        // iframe embed
+        const iframeRegex = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi;
+        for (const m of [...html.matchAll(iframeRegex)]) {
+            if (!isBlocked(m[1])) return m[1];
+        }
+        // URL diretti
+        const patterns = [
             /['"](https?:\/\/[^"']+\.mp4[^"']*)['"]/i,
             /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/i,
-            /source:\s*['"](https?:\/\/[^"']+)['"]/i,
-            /file:\s*['"](https?:\/\/[^"']+)['"]/i
+            /file:\s*['"](https?:\/\/[^"']+)['"]/i,
+            /source:\s*['"](https?:\/\/[^"']+)['"]/i
         ];
-        
-        for (const pattern of directPatterns) {
-            const match = decoded.match(pattern);
-            if (match && match[1] && !isBlocked(match[1])) {
-                return match[1];
-            }
+        for (const p of patterns) {
+            const m = html.match(p);
+            if (m && m[1] && !isBlocked(m[1])) return m[1];
         }
-        
         return null;
     }
 
-    /**
-     * Decodifica le entità HTML.
-     * @param {string} str
-     * @returns {string}
-     */
     decodeEntities(str) {
         return (str || '')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;|'/g, "'")
-            .replace(/&amp;/g, '&')
-            .replace(/&#x3D;|=/g, '=')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>');
+            .replace(/&quot;/g, '"').replace(/&#039;/g, "'")
+            .replace(/&amp;/g, '&').replace(/&#x3D;/g, '=')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
     }
 }
-
 export default new TorrentSource();

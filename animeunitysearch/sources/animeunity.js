@@ -1,20 +1,18 @@
 /**
  * Estensione AnimeUnity per Shiru
  * Sito: https://www.animeunity.so/
- * 
- * Implementa lo scraping delle pagine di ricerca e degli episodi per estrarre
- * i link di streaming HLS (m3u8) diretti. I campi torrent sono compilati con
- * valori fittizi per soddisfare l'interfaccia di Shiru.
+ * NOTA: Il sito è una SPA. I dati sono embedded nello script iniziale
+ * oppure ottenibili via API interna.
  */
-
 export class TorrentSource {
     url = 'https://www.animeunity.so';
     settings = {};
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": "application/json, text/html, application/xhtml+xml, */*;q=0.8",
         "Accept-Language": "it-IT,it;q=0.9",
-        "Referer": this.url
+        "Referer": this.url,
+        "X-Requested-With": "XMLHttpRequest"
     };
 
     async single(query) {
@@ -23,46 +21,30 @@ export class TorrentSource {
             const title = titles[0] || '?';
             const episode = query?.episode || 1;
 
-            const searchUrl = `${this.url}/archivio?title=${encodeURIComponent(title)}`;
-            const searchResponse = await fetch(searchUrl, { headers: this.headers });
-            
-            if (!searchResponse.ok) return [];
-            
-            const searchHtml = await searchResponse.text();
-            const animeInfo = this.extractAnimeInfo(searchHtml);
-            
+            // CORREZIONE: usa l'API interna del sito (non la pagina HTML SPA)
+            const animeInfo = await this.searchViaApi(title);
             if (!animeInfo) {
-                console.log("Nessun risultato trovato per:", title);
+                console.log("[AnimeUnity] Nessun risultato per:", title);
                 return [];
             }
+            console.log("[AnimeUnity] Anime trovato:", animeInfo.id, animeInfo.slug);
 
-            const animeUrl = `${this.url}/anime/${animeInfo.id}-${animeInfo.slug}`;
-            const animeResponse = await fetch(animeUrl, { headers: this.headers });
-            
-            if (!animeResponse.ok) return [];
-            
-            const animeHtml = await animeResponse.text();
-            const videoUrl = await this.extractVideoUrl(animeHtml, episode);
-            
+            const videoUrl = await this.getVideoUrl(animeInfo, episode);
             if (!videoUrl) {
-                console.log(`Impossibile estrarre URL video per episodio ${episode}`);
+                console.log(`[AnimeUnity] Video non trovato per ep ${episode}`);
                 return [];
             }
 
             return [{
                 title: `${title} - Episodio ${episode} [AnimeUnity]`,
                 link: videoUrl,
-                seeders: 0,
-                leechers: 0,
-                downloads: 0,
+                seeders: 0, leechers: 0, downloads: 0,
                 accuracy: 'high',
                 hash: `animeunity-${episode}-${Date.now()}`,
-                size: 0,
-                date: new Date(),
-                type: 'best'
+                size: 0, date: new Date(), type: 'best'
             }];
         } catch (error) {
-            console.error("Errore in single():", error.message);
+            console.error("[AnimeUnity] Errore:", error.message);
             return [];
         }
     }
@@ -73,48 +55,29 @@ export class TorrentSource {
             const episodeCount = query?.episodeCount || 12;
             const results = [];
 
-            const searchUrl = `${this.url}/archivio?title=${encodeURIComponent(title)}`;
-            const searchResponse = await fetch(searchUrl, { headers: this.headers });
-            
-            if (!searchResponse.ok) return [];
-            
-            const searchHtml = await searchResponse.text();
-            const animeInfo = this.extractAnimeInfo(searchHtml);
-            
+            const animeInfo = await this.searchViaApi(title);
             if (!animeInfo) return [];
-
-            const animeUrl = `${this.url}/anime/${animeInfo.id}-${animeInfo.slug}`;
-            const animeResponse = await fetch(animeUrl, { headers: this.headers });
-            
-            if (!animeResponse.ok) return [];
-            
-            const animeHtml = await animeResponse.text();
 
             for (let ep = 1; ep <= episodeCount; ep++) {
                 try {
-                    const videoUrl = await this.extractVideoUrl(animeHtml, ep);
+                    const videoUrl = await this.getVideoUrl(animeInfo, ep);
                     if (videoUrl) {
                         results.push({
                             title: `${title} - Episodio ${ep} [AnimeUnity]`,
                             link: videoUrl,
-                            seeders: 0,
-                            leechers: 0,
-                            downloads: 0,
+                            seeders: 0, leechers: 0, downloads: 0,
                             accuracy: 'high',
                             hash: `animeunity-batch-${ep}-${Date.now()}`,
-                            size: 0,
-                            date: new Date(),
-                            type: 'batch'
+                            size: 0, date: new Date(), type: 'batch'
                         });
                     }
                 } catch (e) {
-                    console.log(`Episodio ${ep} non disponibile`);
+                    console.log(`[AnimeUnity] Ep ${ep} non disponibile`);
                 }
             }
-
             return results;
         } catch (error) {
-            console.error("Errore in batch():", error.message);
+            console.error("[AnimeUnity] Errore batch:", error.message);
             return [];
         }
     }
@@ -125,119 +88,130 @@ export class TorrentSource {
 
     async validate() {
         try {
-            const response = await fetch(this.url, {
-                method: 'HEAD',
-                headers: this.headers
-            });
-            return response.ok;
-        } catch (error) {
-            return false;
-        }
+            const r = await fetch(this.url, { method: 'HEAD', headers: this.headers });
+            return r.ok;
+        } catch { return false; }
     }
 
-    extractAnimeInfo(html) {
-        const decoded = this.decodeEntities(html);
-        
-        // Pattern: /anime/<id>-<slug>
-        const regex = /href="\/anime\/(\d+)-([^"]+)"/gi;
-        const matches = [...decoded.matchAll(regex)];
-        
-        if (matches.length > 0) {
-            return {
-                id: matches[0][1],
-                slug: matches[0][2]
-            };
+    // NUOVO: ricerca tramite API interna
+    async searchViaApi(title) {
+        // Metodo 1: API JSON diretta
+        try {
+            const apiUrl = `${this.url}/api/it/anime`;
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    ...this.headers,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ title: title })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // La risposta tipica è { records: [...] } oppure un array
+                const records = data?.records || data?.data || (Array.isArray(data) ? data : []);
+                if (records.length > 0) {
+                    const first = records[0];
+                    return { id: first.id, slug: first.slug };
+                }
+            }
+        } catch (e) {
+            console.log("[AnimeUnity] API POST fallita, provo fallback HTML:", e.message);
         }
-        
-        // Fallback: cerca nel JSON embedded
-        const jsonRegex = /data-anime=["']?{[^}]*id["']?\s*:\s*["']?(\d+)["']?[^}]*slug["']?\s*:\s*["']?([^"']+)["']?/i;
-        const jsonMatch = decoded.match(jsonRegex);
-        
-        if (jsonMatch) {
-            return {
-                id: jsonMatch[1],
-                slug: jsonMatch[2]
-            };
+
+        // Metodo 2: fallback - parsing dati embedded nella pagina archivio
+        try {
+            const pageUrl = `${this.url}/archivio?title=${encodeURIComponent(title)}`;
+            const response = await fetch(pageUrl, { headers: this.headers });
+            if (response.ok) {
+                const html = await response.text();
+                // Cerca dati JSON nello script iniziale della SPA
+                // Pattern: window.__INITIAL_DATA__ o simili
+                const dataMatch = html.match(
+                    /window\.__INITIAL_DATA__\s*=\s*({[\s\S]*?});?\s*<\/script>/i
+                );
+                if (dataMatch) {
+                    try {
+                        const data = JSON.parse(dataMatch[1]);
+                        const records = data?.records || data?.anime || [];
+                        if (records.length > 0) {
+                            return { id: records[0].id, slug: records[0].slug };
+                        }
+                    } catch (parseErr) {
+                        console.log("[AnimeUnity] Errore parsing JSON embedded:", parseErr.message);
+                    }
+                }
+                // Pattern alternativo: cerca nel JSON inline
+                const jsonRegex = /"id"\s*:\s*(\d+)\s*,\s*"slug"\s*:\s*"([^"]+)"/gi;
+                const matches = [...html.matchAll(jsonRegex)];
+                if (matches.length > 0) {
+                    return { id: matches[0][1], slug: matches[0][2] };
+                }
+            }
+        } catch (e) {
+            console.log("[AnimeUnity] Fallback HTML fallito:", e.message);
         }
-        
+
         return null;
     }
 
-    async extractVideoUrl(html, episode) {
-        const decoded = this.decodeEntities(html);
-        
-        const BLOCKED_HOSTS = [
-            'youtube.com', 'youtu.be', 'dailymotion.com',
-            'a-ads.com', 'ad.a-ads.com', 'acceptable.a-ads.com',
-            'usesponsorarrange.com', 'adsterra', 'propellerads', 'popads'
-        ];
-        
-        const isBlocked = (url) => BLOCKED_HOSTS.some(h => url.includes(h));
+    // NUOVO: ottiene URL video per un episodio specifico
+    async getVideoUrl(animeInfo, episode) {
+        // URL della pagina episodio
+        const episodeUrl = `${this.url}/it/anime/${animeInfo.id}-${animeInfo.slug}/${episode}`;
+        console.log("[AnimeUnity] Fetch episodio:", episodeUrl);
 
-        // Cerca pattern episodio specifico
-        const episodeRegex = new RegExp(
-            `(?:episode|ep)\\s*[:=]\\s*["']?${episode}["']?[^}]*` +
-            `(?:url|src|file|link)\\s*[:=]\\s*["']([^"']+)["']`,
-            'gi'
-        );
-        
-        const match = decoded.match(episodeRegex);
-        if (match && match[1] && !isBlocked(match[1])) {
-            return match[1];
-        }
+        try {
+            const response = await fetch(episodeUrl, { headers: this.headers });
+            if (!response.ok) return null;
+            const html = await response.text();
 
-        // Cerca URL m3u8
-        const m3u8Regex = /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/gi;
-        const m3u8Matches = [...decoded.matchAll(m3u8Regex)];
-        
-        if (m3u8Matches.length > 0) {
-            for (const m of m3u8Matches) {
-                if (!isBlocked(m[1]) && (m[1].includes(`ep${episode}`) || m[1].includes(`episode${episode}`))) {
-                    return m[1];
+            // Cerca URL m3u8 diretto
+            const m3u8Regex = /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/gi;
+            const m3u8Matches = [...html.matchAll(m3u8Regex)];
+            if (m3u8Matches.length > 0) {
+                return m3u8Matches[0][1];
+            }
+
+            // Cerca embed VixCloud o simile
+            const iframeRegex = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi;
+            for (const m of [...html.matchAll(iframeRegex)]) {
+                const embedUrl = m[1];
+                if (embedUrl.includes('vixcloud') || embedUrl.includes('stream')) {
+                    // Prova a estrarre m3u8 dall'embed
+                    try {
+                        const embedResp = await fetch(embedUrl, {
+                            headers: { ...this.headers, Referer: episodeUrl }
+                        });
+                        const embedHtml = await embedResp.text();
+                        const embedM3u8 = embedHtml.match(/['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/i);
+                        if (embedM3u8) return embedM3u8[1];
+                        return embedUrl;
+                    } catch (e) {
+                        console.log("[AnimeUnity] Errore embed:", e.message);
+                    }
                 }
             }
-            const first = m3u8Matches.find(m => !isBlocked(m[1]));
-            if (first) return first[1];
+
+            // Cerca nel JSON embedded della pagina episodio
+            const sourceRegex = /"src"\s*:\s*"(https?:\/\/[^"]+)"/gi;
+            const sourceMatches = [...html.matchAll(sourceRegex)];
+            if (sourceMatches.length > 0) {
+                return sourceMatches[0][1];
+            }
+        } catch (e) {
+            console.log("[AnimeUnity] Errore fetch episodio:", e.message);
         }
 
-        // Cerca iframe con player
-        const iframeRegex = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi;
-        const iframes = [...decoded.matchAll(iframeRegex)];
-        
-        for (const m of iframes) {
-            const embedUrl = m[1];
-            if (isBlocked(embedUrl)) continue;
-            
-            try {
-                const embedResponse = await fetch(embedUrl, { headers: this.headers });
-                const embedHtml = await embedResponse.text();
-                const embedDecoded = this.decodeEntities(embedHtml);
-                
-                const embedM3u8Regex = /['"](https?:\/\/[^"']+\.m3u8[^"']*)['"]/i;
-                const embedMatch = embedDecoded.match(embedM3u8Regex);
-                
-                if (embedMatch && embedMatch[1] && !isBlocked(embedMatch[1])) {
-                    return embedMatch[1];
-                }
-                
-                return embedUrl;
-            } catch (e) {
-                console.error("Errore fetching embed:", e.message);
-            }
-        }
-        
         return null;
     }
 
     decodeEntities(str) {
         return (str || '')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;|'/g, "'")
-            .replace(/&amp;/g, '&')
-            .replace(/&#x3D;|=/g, '=')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>');
+            .replace(/&quot;/g, '"').replace(/&#039;/g, "'")
+            .replace(/&amp;/g, '&').replace(/&#x3D;/g, '=')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
     }
 }
-
 export default new TorrentSource();
