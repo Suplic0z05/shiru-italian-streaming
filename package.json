@@ -4,5 +4,9 @@
   "description": "Estensioni Shiru per siti di streaming italiani",
   "type": "module",
   "author": "Suplic0z05",
-  "license": "GPL-3.0"
+  "license": "GPL-3.0",
+  "scripts": {
+    "verify": "node scripts/verify.mjs --offline",
+    "verify:live": "node scripts/verify.mjs --live"
+  }
 }

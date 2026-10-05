@@ -1,0 +1,22 @@
+# Verifica offline delle estensioni.
+# Solo controlli statici: nessuna richiesta ai siti di streaming.
+# --live non gira qui perche' da IP di datacenter gli stessi siti rispondono in
+# modo instabile o bloccano le richieste, e farlo sarebbe scraping da CI.
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: node --check sui sorgenti
+        run: for f in */sources/*.js; do node --check "$f"; done
+      - name: verify offline
+        run: node scripts/verify.mjs --offline
